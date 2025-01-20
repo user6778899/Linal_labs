@@ -1,46 +1,47 @@
-class matrix:
-    def __init__(self, n, m, grid, flag=True):
+class SparseMatrix:
+    def __init__(self, n, m, grid=[]):
         self.n = n
         self.m = m
-        
-        # Разряженный вид матрицы
-        if flag:
-            self.sparse_grid = self.sparse(grid) # Перевод из обычной в разряженную
-        else:
-            self.sparse_grid = grid # Если на входе уже разряженная
-        
+        self.rows = []
+        self.cols = []
+        self.values = []
+        if grid != []:
+            for i in range(n):
+                self.add_row(grid[i], i)
 
-    def sparse(self, grid): # Создаёт разряженную матрицу
-        sparse_grid = {}
-        for i in range(self.n): 
-            for j in range(self.m): 
-                if grid[i][j] != 0: 
-                    sparse_grid[(i, j)] = grid[i][j]
-                else:
-                    continue
-        return sparse_grid
+    def add_row(self, row, row_index):
+        for col_index, value in enumerate(row):
+            if value != 0:
+                self.rows.append(row_index)
+                self.cols.append(col_index)
+                self.values.append(value)
+
+    def trace(self):
+        trace_sum = 0
+        for r, c, v in zip(self.rows, self.cols, self.values):
+            if r == c:
+                trace_sum += v
+        return trace_sum
+
+    def get_element(self, row_index, col_index, o=0):
+        if o != 0:
+            row_index, col_index = row_index - 1, col_index - 1
+        for i in range(len(self.rows)):
+            if self.rows[i] == row_index and self.cols[i] == col_index:
+                return self.values[i]
+        return 0
+
+    def print_sparse(self): # выводит разряженную матрицу
+        print(self.rows)
+        print(self.cols)
+        print(self.values)
 
 
-    def print_sparse(self): # Выводит словарь с разряженной матрицей
-        print(self.sparse_grid)
-        
-
-    def trace(self): # След матрицы
-        if self.n != self.m: # Проверка на квадртность
-            print('Матрица не квадратная!')
-            return 0
-        s = 0 
-        for i in range(self.n):
-            if self.sparse_grid.get((i, i)):
-                s += self.sparse_grid[(i, i)] 
-        return s
-    
-
-    def get_element(self, i, j): # Возврат элемента по индексу и столбцу
-        if self.sparse_grid.get((i-1, j-1)):
-            return self.sparse_grid[(i-1, j-1)]
-        else:
-            return 0
+    def __str__(self):
+        full_matrix = [[0] * self.m for _ in range(self.n)]
+        for i, j, value in zip(self.rows, self.cols, self.values):
+            full_matrix[i][j] = value
+        return '\n'.join(' '.join(map(str, row)) for row in full_matrix)
 
 
 def print_grid(n, m, grid, k=3): # Выводит обычный вид матрицы
@@ -51,96 +52,107 @@ def print_grid(n, m, grid, k=3): # Выводит обычный вид матр
         print()
 
 
-def print_mat(mat, k=3): # По экземпляру класса выводит матрицу в обычном виде
-    for i in range(mat.n):
-        for j in range(mat.m):
-            if mat.sparse_grid.get((i, j)):
-                tab = ' '*(k-len(str(mat.sparse_grid[(i, j)])))
-                print(mat.sparse_grid[(i, j)], end=tab)
-            else:
-                print(0, end='  ')
-        print()
-
-        
-def sum_matrices(mat1, mat2): # Сложение матриц
-    if mat1.n != mat2.n or mat1.m != mat2.m:
+def sum_matrices(matrix1, matrix2):
+    if matrix1.n != matrix2.n or matrix1.m != matrix2.m:
         print('Матрицы разного размера, их нельзя сложить!')
-        return 0
-    zero_list = [] # для удаления нулевых элементов
-    sparse_grid_copy = mat1.sparse_grid.copy() # копируем словарь
-    mat_sum = matrix(mat1.n, mat1.m, sparse_grid_copy, flag=False)
-    # Прибавляем элементы из 2 матрицы в sum матрицу
-    for i in mat2.sparse_grid:
-        if mat_sum.sparse_grid.get(i):
-            mat_sum.sparse_grid[i] += mat2.sparse_grid[i]
-            if mat_sum.sparse_grid[i] == 0:
-                zero_list.append(i)
-        else:
-            mat_sum.sparse_grid[i] = mat2.sparse_grid[i]
-    for i in zero_list:
-        del mat_sum.sparse_grid[i]
-    return mat_sum
-    
+        return
+
+    result = SparseMatrix(matrix1.n, matrix1.m)
+
+    for r, c, v in zip(matrix1.rows, matrix1.cols, matrix1.values):
+        result.rows.append(r)
+        result.cols.append(c)
+        result.values.append(v)
+
+    for r, c, v in zip(matrix2.rows, matrix2.cols, matrix2.values):
+        found = False
+        for i in range(len(result.rows)):
+            if result.rows[i] == r and result.cols[i] == c:
+                result.values[i] += v
+                found = True
+                break
+        if not found:
+            result.rows.append(r)
+            result.cols.append(c)
+            result.values.append(v)
+
+    return result
 
 
-def multiply_int(mat, x): # Умножение матрицы на число
-    sparse_grid_copy = mat.sparse_grid.copy()
-    mat_mult = matrix(mat.n, mat.m, sparse_grid_copy, flag=False)
-    zero_list = []
-    for i in mat_mult.sparse_grid:
-        mat_mult.sparse_grid[i] *= x
-        if mat_mult.sparse_grid[i] == 0:
-            zero_list.append(i)
-    for i in zero_list:
-        del mat_mult.sparse_grid[i]
-    return mat_mult
-    
+def multiply_int(matrix, scalar):
+    result = SparseMatrix(matrix.n, matrix.m)
+    for r, c, v in zip(matrix.rows, matrix.cols, matrix.values):
+        result.rows.append(r)
+        result.cols.append(c)
+        result.values.append(v * scalar)
+    return result
 
-def multiply_matrices(mat1, mat2): # Перемножение матриц
-    if mat1.m != mat2.n:
+
+def multiply_matrices(matrix1, matrix2):
+    if matrix1.m != matrix2.n:
         print('Матрицы разного размера, их нельзя перемножить!')
-        return 0
-    mat_mult = matrix(mat1.n, mat1.m, {}, flag=False)
-    for i in range(mat1.n): 
-        for j in range(mat2.m):
-            summ = 0
-            for k in range(mat1.m): 
-                summ += mat1.get_element(i+1, k+1) * mat2.get_element(k+1, j+1)
-            if summ != 0:
-                mat_mult.sparse_grid[(i, j)] = summ
-    return mat_mult 
+        return
+
+    result = SparseMatrix(matrix1.n, matrix2.m)
+
+    for i in range(matrix1.n):
+        for j in range(matrix2.m):
+            sum_value = 0
+            for r1, c1, v1 in zip(matrix1.rows, matrix1.cols, matrix1.values):
+                if r1 == i:
+                    for r2, c2, v2 in zip(matrix2.rows, matrix2.cols, matrix2.values):
+                        if c1 == r2 and c2 == j:
+                            sum_value += v1 * v2
+            if sum_value != 0:
+                result.rows.append(i)
+                result.cols.append(j)
+                result.values.append(sum_value)
+
+    return result
 
 
-def minor(mat, i, j): # Подсчёт минора
-        minor_sum = []
-        for k in range(mat.n):
-            if k == i: continue
-            minor_row = []
-            for l in range(mat.m):
-                if l == j: continue
-                minor_row.append(mat.get_element(k+1, l+1))
-            minor_sum.append(minor_row)
-        mat2 = matrix(mat.n-1, mat.m-1, minor_sum)
-        return mat2
 
+def get_minor(matrix, row, col):
+    """
+    Получение минора для разряженной матрицы (матрицы без строки `row` и столбца `col`).
+    """
+    minor = SparseMatrix(matrix.n - 1, matrix.m - 1)
+    for i in range(matrix.n):
+        if i == row:
+            continue
+        for j in range(matrix.m):
+            if j == col:
+                continue
+            value = matrix.get_element(i, j)
+            if value != 0:
+                new_row = i if i < row else i - 1
+                new_col = j if j < col else j - 1
+                minor.add_row([value if x == new_col else 0 for x in range(minor.m)], new_row)
+    return minor
+
+
+def determinant(matrix):
+    """
+    Вычисление детерминанта для разряженной матрицы рекурсивно.
+    """
+    if matrix.n != matrix.m:
+        raise ValueError("Матрица должна быть квадратной для вычисления детерминанта.")
     
-def determinant(mat):  # Определитель
-    if mat.n != mat.m:
-        print('Матрицa неправильного размера, не квадратная!')
-        return 0
-    if mat.n == 1: # для маленьких входных матриц
-        a = mat.get_element(0+1, 0+1)
-        return a
-    if mat.n == 2: # последний шаг
-        a = mat.get_element(0+1, 0+1)
-        b = mat.get_element(0+1, 1+1)
-        c = mat.get_element(1+1, 0+1)
-        d = mat.get_element(1+1, 1+1) 
-        return a*d-b*c 
-
+    n = matrix.n
+    if n == 1:
+        return matrix.get_element(0, 0)
+    if n == 2:
+        a = matrix.get_element(0, 0)
+        b = matrix.get_element(0, 1)
+        c = matrix.get_element(1, 0)
+        d = matrix.get_element(1, 1)
+        return a * d - b * c
+    
     det = 0
-    for i in range(mat.m):
-        det += ((-1)**i) * mat.get_element(1, i+1) * determinant(minor(mat, 0, i)) # формула
+    for col in range(n):
+        minor = get_minor(matrix, 0, col)
+        det += ((-1) ** col) * matrix.get_element(0, col) * determinant(minor)
+    
     return det
 
 
@@ -152,46 +164,70 @@ def exists_reverse(mat): # Существует ли обратная
 
 
 if __name__ == "__main__":
-    mat = matrix(3, 3, [
-    [1, 0, 0],
-    [0, 2, 0],
-    [0, 0, 3]
-    ])
+    print('|--------------------|')
+    print('Задание 1')
+    n, m = map(int, input("Введите размер матрицы N и M через пробел: ").split())
+    matrix = SparseMatrix(n, m)
 
-    # Вывод матрицы и следа
-    print("Матрица:")
-    print_mat(mat)
-    print("След матрицы:", mat.trace())
+    print("Введите матрицу (через пробелы на каждой строке):")
+    for i in range(n):
+        row = list(map(float, input().split()))
+        matrix.add_row(row, i)
 
-    print('|'+'-'*20+'|')
+    trace = matrix.trace()
+    print(f"След матрицы: {trace}")
 
-    # Матрица A
-    matrix_a = matrix(2, 2, [
-        [1, 2],
-        [3, 4]
-    ])
-    
-    # Матрица B
-    matrix_b = matrix(2, 2, [
-        [5, 6],
-        [7, 8]
-    ])
-    
-    # Сложение
-    result = sum_matrices(matrix_a, matrix_b)
-    print("Результат сложения:")
-    print_mat(result)
+    i, j = map(int, input("Введите индексы для получения элемента матрицы (через пробел): ").split())
+    element = matrix.get_element(i, j, 1)
+    print(f"Элемент на позиции ({i}, {j}): {element}")
 
-    print('|'+'-'*20+'|')
 
-    # Матрица 3x3
-    mat = matrix(3, 3, [
-        [2, -1, 0],
-        [1, 3, 2],
-        [0, -2, 1]
-    ])
+    print('|--------------------|')
+    print('Задание 2')
+    n1, m1 = map(int, input("Введите размер первой матрицы N1 и M1 через пробел: ").split())
+    matrix1 = SparseMatrix(n1, m1)
 
-    # Вычисление определителя
-    det = determinant(mat)
+    print("Введите первую матрицу (через пробелы на каждой строке):")
+    for i in range(n1):
+        row = list(map(float, input().split()))
+        matrix1.add_row(row, i)
+
+    n2, m2 = map(int, input("Введите размер второй матрицы N2 и M2 через пробел: ").split())
+    matrix2 = SparseMatrix(n2, m2)
+
+    print("Введите вторую матрицу (через пробелы на каждой строке):")
+    for i in range(n2):
+        row = list(map(float, input().split()))
+        matrix2.add_row(row, i)
+
+    print("Сложение матриц:")
+    sum_result = sum_matrices(matrix1, matrix2)
+    if sum_result:
+        print(sum_result)
+
+    scalar = float(input("Введите скаляр для умножения: "))
+    print(f"Умножение первой матрицы на скаляр {scalar}:")
+    scalar_result = multiply_int(matrix1, scalar)
+    print(scalar_result)
+
+    print("Умножение матриц:")
+    multiplication_result = multiply_matrices(matrix1, matrix2)
+    if multiplication_result:
+        print(multiplication_result)
+
+
+    print('|--------------------|')
+    print('Задание 3')
+    n = int(input("Введите размер матрицы (N): "))
+    matrix = SparseMatrix(n, n)
+
+    print("Введите матрицу:")
+    for i in range(n):
+        row = list(map(float, input().split()))
+        matrix.add_row(row, i)
+
+    print(matrix)
+
+    det = determinant(matrix)
     print("Определитель:", det)
-    print("Обратима ли матрица:", "да" if det != 0 else "нет")
+    print(exists_reverse(matrix))
